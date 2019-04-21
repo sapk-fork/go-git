@@ -169,6 +169,16 @@ func (t *Tag) Encode(o plumbing.EncodedObject) error {
 	return t.encode(o, true)
 }
 
+// EncodeWithoutSignature export to a Reader the tag payload that is signed
+func (t *Tag) PGPPayload() (io.Reader, error) {
+	encoded := &plumbing.MemoryObject{}
+	// Encode commit components, excluding signature and get a reader object.
+	if err := t.encode(encoded, false); err != nil {
+		return nil, err
+	}
+	return encoded.Reader()
+}
+
 func (t *Tag) encode(o plumbing.EncodedObject, includeSig bool) (err error) {
 	o.SetType(plumbing.TagObject)
 	w, err := o.Writer()
@@ -287,12 +297,8 @@ func (t *Tag) Verify(armoredKeyRing string) (*openpgp.Entity, error) {
 	// Extract signature.
 	signature := strings.NewReader(t.PGPSignature)
 
-	encoded := &plumbing.MemoryObject{}
 	// Encode tag components, excluding signature and get a reader object.
-	if err := t.encode(encoded, false); err != nil {
-		return nil, err
-	}
-	er, err := encoded.Reader()
+	er, err := t.EncodeWithoutSignature()
 	if err != nil {
 		return nil, err
 	}

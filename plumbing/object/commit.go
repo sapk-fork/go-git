@@ -233,6 +233,16 @@ func (b *Commit) Encode(o plumbing.EncodedObject) error {
 	return b.encode(o, true)
 }
 
+// PGPPayload export to a Reader the commit payload that is signed
+func (b *Commit) PGPPayload() (io.Reader, error) {
+	encoded := &plumbing.MemoryObject{}
+	// Encode commit components, excluding signature and get a reader object.
+	if err := b.encode(encoded, false); err != nil {
+		return nil, err
+	}
+	return encoded.Reader()
+}
+
 func (b *Commit) encode(o plumbing.EncodedObject, includeSig bool) (err error) {
 	o.SetType(plumbing.CommitObject)
 	w, err := o.Writer()
@@ -337,12 +347,8 @@ func (c *Commit) Verify(armoredKeyRing string) (*openpgp.Entity, error) {
 	// Extract signature.
 	signature := strings.NewReader(c.PGPSignature)
 
-	encoded := &plumbing.MemoryObject{}
 	// Encode commit components, excluding signature and get a reader object.
-	if err := c.encode(encoded, false); err != nil {
-		return nil, err
-	}
-	er, err := encoded.Reader()
+	er, err := c.PGPPayload()
 	if err != nil {
 		return nil, err
 	}
